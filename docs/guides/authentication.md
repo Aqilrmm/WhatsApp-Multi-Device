@@ -1,52 +1,52 @@
-# Authentication Guide for WhatsApp Multi-Device API
+# Panduan Otentikasi untuk API Multi-Perangkat WhatsApp
 
-## Overview
+## Gambaran Umum
 
-This guide explains the authentication mechanisms used in the WhatsApp Multi-Device API. Proper authentication is essential for securing your API requests and managing user sessions effectively.
+Panduan ini menjelaskan mekanisme otentikasi yang digunakan dalam API Multi-Perangkat WhatsApp. Otentikasi yang tepat sangat penting untuk mengamankan permintaan API Anda dan mengelola sesi pengguna secara efektif.
 
-## Authentication Mechanism
+## Mekanisme Otentikasi
 
-The API uses token-based authentication. Upon successful login, a token is generated and must be included in the header of subsequent requests to access protected resources.
+API ini menggunakan otentikasi berbasis token. Setelah login berhasil, token akan dibuat dan harus disertakan dalam header setiap permintaan berikutnya untuk mengakses sumber daya yang dilindungi.
 
-### Steps to Authenticate
+### Langkah-Langkah Otentikasi
 
-1. **Login Request**: Send a POST request to the `/api/auth/login` endpoint with the following payload:
-
-   ```json
-   {
-     "username": "your_username",
-     "password": "your_password"
-   }
-   ```
-
-2. **Receive Token**: On successful authentication, the server responds with a JSON object containing the authentication token:
+1. **Permintaan Login**: Kirim permintaan POST ke endpoint `/api/auth/login` dengan payload berikut:
 
    ```json
    {
-     "token": "your_auth_token"
+     "username": "nama_pengguna_anda",
+     "password": "kata_sandi_anda"
    }
    ```
 
-3. **Include Token in Requests**: For all subsequent requests to protected endpoints, include the token in the Authorization header:
+2. **Menerima Token**: Setelah otentikasi berhasil, server akan merespons dengan objek JSON yang berisi token otentikasi:
+
+   ```json
+   {
+     "token": "token_otentikasi_anda"
+   }
+   ```
+
+3. **Sertakan Token dalam Permintaan**: Untuk semua permintaan berikutnya ke endpoint yang dilindungi, sertakan token dalam header Authorization:
 
    ```
-   Authorization: Bearer your_auth_token
+   Authorization: Bearer token_otentikasi_anda
    ```
 
-### Token Expiration
+### Masa Berlaku Token
 
-Tokens are valid for a limited time. If a token expires, you will receive a `401 Unauthorized` response. To obtain a new token, repeat the login process.
+Token berlaku untuk waktu yang terbatas. Jika token kedaluwarsa, Anda akan menerima respons `401 Unauthorized`. Untuk mendapatkan token baru, ulangi proses login.
 
-### Session Management
+### Manajemen Sesi
 
-The API supports session management, allowing you to log out and invalidate tokens. To log out, send a POST request to the `/api/auth/logout` endpoint with the token in the header.
+API ini mendukung manajemen sesi, memungkinkan Anda untuk keluar (logout) dan membatalkan token. Untuk keluar, kirim permintaan POST ke endpoint `/api/auth/logout` dengan token di header.
 
-## Best Practices
+## Praktik Terbaik
 
-- **Secure Storage**: Store tokens securely on the client side to prevent unauthorized access.
-- **Token Renewal**: Implement a mechanism to renew tokens before they expire to maintain user sessions seamlessly.
-- **Error Handling**: Handle authentication errors gracefully in your application to enhance user experience.
+- **Penyimpanan Aman**: Simpan token dengan aman di sisi klien untuk mencegah akses yang tidak sah.
+- **Pembaruan Token**: Implementasikan mekanisme untuk memperbarui token sebelum kedaluwarsa untuk menjaga sesi pengguna tetap berjalan dengan lancar.
+- **Penanganan Kesalahan**: Tangani kesalahan otentikasi dengan baik di aplikasi Anda untuk meningkatkan pengalaman pengguna.
 
-## Conclusion
+## Kesimpulan
 
-Following this authentication guide will help you securely interact with the WhatsApp Multi-Device API. For further details on other API functionalities, refer to the API reference section.
+Mengikuti panduan otentikasi ini akan membantu Anda berinteraksi dengan aman dengan API Multi-Perangkat WhatsApp. Untuk detail lebih lanjut tentang fungsionalitas API lainnya, lihat bagian referensi API.

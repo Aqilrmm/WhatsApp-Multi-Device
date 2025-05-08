@@ -1,19 +1,19 @@
-# Device Management API Reference
+# Referensi API Manajemen Perangkat
 
-## Overview
-The Device Management API allows you to manage WhatsApp devices connected to your application. You can create, retrieve, update, and delete devices, as well as obtain their current status and QR codes for authentication.
+## Gambaran Umum
+API Manajemen Perangkat memungkinkan Anda untuk mengelola perangkat WhatsApp yang terhubung ke aplikasi Anda. Anda dapat membuat, mengambil, memperbarui, dan menghapus perangkat, serta mendapatkan status terkini dan kode QR untuk autentikasi.
 
-## Base URL
+## URL Dasar
 ```
 http://<your-api-url>/api/devices
 ```
 
-## Endpoints
+## Endpoint
 
-### 1. Get All Devices
+### 1. Dapatkan Semua Perangkat
 - **Endpoint:** `GET /api/devices`
-- **Description:** Retrieve a list of all registered devices.
-- **Response:**
+- **Deskripsi:** Mengambil daftar semua perangkat yang terdaftar.
+- **Respons:**
   - **200 OK**
     ```json
     {
@@ -31,12 +31,12 @@ http://<your-api-url>/api/devices
     }
     ```
 
-### 2. Get Device by ID
+### 2. Dapatkan Perangkat berdasarkan ID
 - **Endpoint:** `GET /api/devices/:deviceId`
-- **Description:** Retrieve details of a specific device by its ID.
-- **Parameters:**
-  - `deviceId` (path) - The ID of the device to retrieve.
-- **Response:**
+- **Deskripsi:** Mengambil detail perangkat tertentu berdasarkan ID-nya.
+- **Parameter:**
+  - `deviceId` (path) - ID perangkat yang akan diambil.
+- **Respons:**
   - **200 OK**
     ```json
     {
@@ -51,65 +51,65 @@ http://<your-api-url>/api/devices
       }
     }
     ```
-  - **404 Not Found**
+  - **404 Tidak Ditemukan**
     ```json
     {
-      "error": "Device <deviceId> not found"
+      "error": "Perangkat <deviceId> tidak ditemukan"
     }
     ```
 
-### 3. Create Device
+### 3. Buat Perangkat
 - **Endpoint:** `POST /api/devices`
-- **Description:** Create a new device.
-- **Request Body:**
+- **Deskripsi:** Membuat perangkat baru.
+- **Body Permintaan:**
   ```json
   {
-    "deviceId": "string" // Optional, will be generated if not provided
+    "deviceId": "string" // Opsional, akan dibuat jika tidak disediakan
   }
   ```
-- **Response:**
-  - **201 Created**
+- **Respons:**
+  - **201 Dibuat**
     ```json
     {
       "deviceId": "string",
       "status": "string",
-      "message": "Device created. Scan the QR code to connect.",
+      "message": "Perangkat dibuat. Pindai kode QR untuk terhubung.",
       "qrScanUrl": "/qr-scanner/:deviceId"
     }
     ```
-  - **409 Conflict**
+  - **409 Konflik**
     ```json
     {
-      "error": "Device <deviceId> already exists"
+      "error": "Perangkat <deviceId> sudah ada"
     }
     ```
 
-### 4. Remove Device
+### 4. Hapus Perangkat
 - **Endpoint:** `DELETE /api/devices/:deviceId`
-- **Description:** Remove a device by its ID.
-- **Parameters:**
-  - `deviceId` (path) - The ID of the device to remove.
-- **Response:**
+- **Deskripsi:** Menghapus perangkat berdasarkan ID-nya.
+- **Parameter:**
+  - `deviceId` (path) - ID perangkat yang akan dihapus.
+- **Respons:**
   - **200 OK**
     ```json
     {
       "success": true,
-      "message": "Device <deviceId> removed"
+      "message": "Perangkat <deviceId> dihapus"
     }
     ```
-  - **404 Not Found**
+  - **404 Tidak Ditemukan**
     ```json
     {
-      "error": "Device <deviceId> not found"
+      "error": "Perangkat <deviceId> tidak ditemukan"
     }
     ```
 
-### 5. Get Device QR Code
+### 5. Dapatkan Kode QR Perangkat
 - **Endpoint:** `GET /api/devices/:deviceId/qr`
-- **Description:** Retrieve the QR code for a specific device.
-- **Parameters:**
-  - `deviceId` (path) - The ID of the device for which to retrieve the QR code.
-- **Response:**
+- **Deskripsi:** Mengambil kode QR untuk perangkat tertentu.
+- **Parameter:**
+  - `deviceId` (path) - ID perangkat yang kode QR-nya akan diambil.
+- **Respons:**
   - **200 OK**
     ```json
     {
@@ -118,41 +118,41 @@ http://<your-api-url>/api/devices
       "status": "string"
     }
     ```
-  - **404 Not Found**
+  - **404 Tidak Ditemukan**
     ```json
     {
-      "error": "Device <deviceId> not found"
+      "error": "Perangkat <deviceId> tidak ditemukan"
     }
     ```
-  - **202 Accepted**
+  - **202 Diterima**
     ```json
     {
-      "message": "QR code not generated yet",
+      "message": "Kode QR belum dibuat",
       "status": "string"
     }
     ```
 
-## Example Usage
+## Contoh Penggunaan
 
-### Get All Devices
+### Dapatkan Semua Perangkat
 ```bash
 curl -X GET http://<your-api-url>/api/devices
 ```
 
-### Create a Device
+### Buat Perangkat
 ```bash
 curl -X POST http://<your-api-url>/api/devices -H "Content-Type: application/json" -d '{"deviceId": "my-device-id"}'
 ```
 
-### Remove a Device
+### Hapus Perangkat
 ```bash
 curl -X DELETE http://<your-api-url>/api/devices/my-device-id
 ```
 
-### Get Device QR Code
+### Dapatkan Kode QR Perangkat
 ```bash
 curl -X GET http://<your-api-url>/api/devices/my-device-id/qr
 ```
 
-## Conclusion
-This API provides a comprehensive way to manage WhatsApp devices within your application. Ensure to handle responses appropriately and refer to the other sections of the documentation for more details on messaging and webhook functionalities.
+## Kesimpulan
+API ini menyediakan cara komprehensif untuk mengelola perangkat WhatsApp di dalam aplikasi Anda. Pastikan untuk menangani respons dengan tepat dan merujuk ke bagian lain dari dokumentasi untuk detail lebih lanjut tentang fungsionalitas pesan dan webhook.

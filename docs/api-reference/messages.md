@@ -1,10 +1,10 @@
-# Messaging API Documentation
+# Dokumentasi API Pesan
 
-## Overview
+## Gambaran Umum
 
-The Messaging API allows you to send and receive messages through the WhatsApp Multi-Device Manager. This document outlines the available endpoints, request and response formats, and provides examples for common use cases.
+API Pesan memungkinkan Anda mengirim dan menerima pesan melalui WhatsApp Multi-Device Manager. Dokumen ini menguraikan endpoints yang tersedia, format permintaan dan respons, serta menyediakan contoh untuk kasus penggunaan umum.
 
-## Base URL
+## URL Dasar
 
 ```
 http://<your-server-url>/api/messages
@@ -12,15 +12,15 @@ http://<your-server-url>/api/messages
 
 ## Endpoints
 
-### Send Message
+### Kirim Pesan
 
 - **POST** `/send`
 
-#### Description
+#### Deskripsi
 
-This endpoint allows you to send a message from a specific device to a recipient.
+Endpoint ini memungkinkan Anda mengirim pesan dari perangkat tertentu ke penerima.
 
-#### Request
+#### Permintaan
 
 - **Headers**
   - `Content-Type: application/json`
@@ -28,20 +28,20 @@ This endpoint allows you to send a message from a specific device to a recipient
 - **Body**
 ```json
 {
-  "to": "<recipient-phone-number>",
-  "message": "<message-content>"
+  "to": "<nomor-telepon-penerima>",
+  "message": "<isi-pesan>"
 }
 ```
 
-#### Response
+#### Respons
 
-- **Success (200 OK)**
+- **Sukses (200 OK)**
 ```json
 {
   "success": true,
   "messageId": "<message-id>",
   "from": "<device-id>",
-  "to": "<recipient-phone-number>",
+  "to": "<nomor-telepon-penerima>",
   "timestamp": "<timestamp>"
 }
 ```
@@ -49,42 +49,42 @@ This endpoint allows you to send a message from a specific device to a recipient
 - **Error (400 Bad Request)**
 ```json
 {
-  "error": "To and message fields are required"
+  "error": "Kolom 'to' dan 'message' wajib diisi"
 }
 ```
 
-### Get Messages
+### Dapatkan Pesan
 
 - **GET** `/:deviceId`
 
-#### Description
+#### Deskripsi
 
-This endpoint retrieves messages for a specific device. Note that this implementation requires a webhook to be set up for receiving messages.
+Endpoint ini mengambil pesan untuk perangkat tertentu. Perhatikan bahwa implementasi ini memerlukan webhook untuk diatur untuk menerima pesan.
 
-#### Request
+#### Permintaan
 
-- **Parameters**
-  - `deviceId`: The ID of the device for which to retrieve messages.
+- **Parameter**
+  - `deviceId`: ID perangkat untuk mengambil pesan.
 
-#### Response
+#### Respons
 
-- **Success (200 OK)**
+- **Sukses (200 OK)**
 ```json
 {
-  "message": "To get messages, please implement a webhook endpoint and register it using the /api/messages/webhook endpoint",
+  "message": "Untuk mendapatkan pesan, harap implementasikan endpoint webhook dan daftarkan menggunakan endpoint /api/messages/webhook",
   "messages": []
 }
 ```
 
-### Register Webhook
+### Daftarkan Webhook
 
 - **POST** `/webhook`
 
-#### Description
+#### Deskripsi
 
-This endpoint allows you to register a webhook for message events.
+Endpoint ini memungkinkan Anda mendaftarkan webhook untuk acara pesan.
 
-#### Request
+#### Permintaan
 
 - **Headers**
   - `Content-Type: application/json`
@@ -92,19 +92,19 @@ This endpoint allows you to register a webhook for message events.
 - **Body**
 ```json
 {
-  "url": "<webhook-url>",
+  "url": "<url-webhook>",
   "events": ["message_received", "message_sent"]
 }
 ```
 
-#### Response
+#### Respons
 
-- **Success (200 OK)**
+- **Sukses (200 OK)**
 ```json
 {
   "success": true,
-  "message": "Webhook registered",
-  "url": "<webhook-url>",
+  "message": "Webhook terdaftar",
+  "url": "<url-webhook>",
   "events": ["message_received", "message_sent"]
 }
 ```
@@ -112,27 +112,27 @@ This endpoint allows you to register a webhook for message events.
 - **Error (400 Bad Request)**
 ```json
 {
-  "error": "Webhook URL is required"
+  "error": "URL Webhook wajib diisi"
 }
 ```
 
-## Example Usage
+## Contoh Penggunaan
 
-### Sending a Message
+### Mengirim Pesan
 
 ```bash
 curl -X POST http://<your-server-url>/api/messages/send \
 -H "Content-Type: application/json" \
--d '{"to": "+1234567890", "message": "Hello, World!"}'
+-d '{"to": "+1234567890", "message": "Halo, Dunia!"}'
 ```
 
-### Retrieving Messages
+### Mengambil Pesan
 
 ```bash
 curl -X GET http://<your-server-url>/api/messages/<device-id>
 ```
 
-### Registering a Webhook
+### Mendaftarkan Webhook
 
 ```bash
 curl -X POST http://<your-server-url>/api/messages/webhook \
@@ -140,6 +140,6 @@ curl -X POST http://<your-server-url>/api/messages/webhook \
 -d '{"url": "https://your-webhook-url.com", "events": ["message_received"]}'
 ```
 
-## Conclusion
+## Kesimpulan
 
-This Messaging API provides a straightforward way to interact with the WhatsApp Multi-Device Manager for sending and receiving messages. For further details, refer to the other sections of the API documentation.
+API Pesan ini menyediakan cara mudah untuk berinteraksi dengan WhatsApp Multi-Device Manager untuk mengirim dan menerima pesan. Untuk detail lebih lanjut, lihat bagian lain dari dokumentasi API.

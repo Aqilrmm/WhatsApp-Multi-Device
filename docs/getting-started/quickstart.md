@@ -1,46 +1,46 @@
-# Quick Start Guide for WhatsApp Multi-Device API
+# Panduan Memulai Cepat untuk API Multi-Perangkat WhatsApp
 
-Welcome to the Quick Start Guide for the WhatsApp Multi-Device API! This guide will help you get up and running with the API quickly.
+Selamat datang di Panduan Memulai Cepat untuk API Multi-Perangkat WhatsApp! Panduan ini akan membantu Anda untuk memulai dan menjalankan API dengan cepat.
 
-## Prerequisites
+## Prasyarat
 
-Before you begin, ensure you have the following:
+Sebelum Anda memulai, pastikan Anda memiliki hal-hal berikut:
 
-- Node.js installed on your machine (version 14 or higher).
-- A WhatsApp account to connect with the API.
-- Basic knowledge of JavaScript and RESTful APIs.
+- Node.js terinstal di mesin Anda (versi 14 atau lebih tinggi).
+- Akun WhatsApp untuk terhubung dengan API.
+- Pengetahuan dasar tentang JavaScript dan API RESTful.
 
-## Installation
+## Instalasi
 
-1. **Clone the Repository**
+1. **Klon Repository**
 
-   Open your terminal and run the following command to clone the repository:
+   Buka terminal Anda dan jalankan perintah berikut untuk mengklon repositori:
 
    ```bash
    git clone https://github.com/yourusername/whatsapp-multi-device-api.git
    ```
 
-2. **Navigate to the Project Directory**
+2. **Navigasi ke Direktori Proyek**
 
-   Change into the project directory:
+   Masuk ke direktori proyek:
 
    ```bash
    cd whatsapp-multi-device-api
    ```
 
-3. **Install Dependencies**
+3. **Instal Dependensi**
 
-   Install the required dependencies using npm:
+   Instal dependensi yang diperlukan menggunakan npm:
 
    ```bash
    npm install
    ```
 
-## Initial Setup
+## Pengaturan Awal
 
-1. **Configuration**
+1. **Konfigurasi**
 
-   Create a configuration file named `config.js` in the root directory and set up your API configurations, such as port and log level.
+   Buat file konfigurasi bernama `config.js` di direktori root dan atur konfigurasi API Anda, seperti port dan level log.
 
    ```javascript
    module.exports = {
@@ -49,38 +49,38 @@ Before you begin, ensure you have the following:
    };
    ```
 
-2. **Start the Server**
+2. **Mulai Server**
 
-   You can start the server using the following command:
+   Anda dapat memulai server menggunakan perintah berikut:
 
    ```bash
    npm start
    ```
 
-   The server will start running on `http://localhost:3000`.
+   Server akan mulai berjalan di `http://localhost:3000`.
 
-## Basic Usage
+## Penggunaan Dasar
 
-### Sending a Message
+### Mengirim Pesan
 
-To send a message using the API, make a POST request to the `/api/messages/send` endpoint with the following JSON body:
+Untuk mengirim pesan menggunakan API, buat permintaan POST ke endpoint `/api/messages/send` dengan body JSON berikut:
 
 ```json
 {
   "deviceId": "your-device-id",
-  "to": "recipient-number",
-  "message": "Hello, World!"
+  "to": "nomor-penerima",
+  "message": "Halo, Dunia!"
 }
 ```
 
-### Getting Device Status
+### Mendapatkan Status Perangkat
 
-To check the status of a device, make a GET request to the `/api/devices/:deviceId` endpoint:
+Untuk memeriksa status perangkat, buat permintaan GET ke endpoint `/api/devices/:deviceId`:
 
 ```bash
 curl http://localhost:3000/api/devices/your-device-id
 ```
 
-## Conclusion
+## Kesimpulan
 
-You are now ready to use the WhatsApp Multi-Device API! For more detailed information, please refer to the [API Reference](../api-reference/index.md) and other guides in the documentation. Happy coding!
+Anda sekarang siap untuk menggunakan API Multi-Perangkat WhatsApp! Untuk informasi lebih rinci, silakan merujuk ke [Referensi API](../api-reference/index.md) dan panduan lainnya dalam dokumentasi. SelamatCoding!

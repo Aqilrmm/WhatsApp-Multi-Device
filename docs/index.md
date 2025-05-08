@@ -1,24 +1,24 @@
-# WhatsApp Multi-Device API Documentation
+# Dokumentasi API Multi-Perangkat WhatsApp
 
-Welcome to the WhatsApp Multi-Device API documentation. This documentation provides comprehensive information on how to use the API effectively, including installation instructions, API references, guides, and more.
+Selamat datang di dokumentasi API Multi-Perangkat WhatsApp. Dokumentasi ini menyediakan informasi lengkap tentang cara menggunakan API secara efektif, termasuk instruksi instalasi, referensi API, panduan, dan banyak lagi.
 
-## Table of Contents
+## Daftar Isi
 
-- [Getting Started](getting-started/quickstart.md)
-- [API Reference](api-reference/devices.md)
-  - [Device Management](api-reference/devices.md)
-  - [Messaging](api-reference/messages.md)
-  - [Webhooks](api-reference/webhooks.md)
-- [Guides](guides/authentication.md)
-  - [Authentication](guides/authentication.md)
-  - [Deployment](guides/deployment.md)
+- [Mulai](getting-started/quickstart.md)
+- [Referensi API](api-reference/devices.md)
+  - [Manajemen Perangkat](api-reference/devices.md)
+  - [Pengiriman Pesan](api-reference/messages.md)
+  - [Webhook](api-reference/webhooks.md)
+- [Panduan](guides/authentication.md)
+  - [Autentikasi](guides/authentication.md)
+  - [Penyebaran](guides/deployment.md)
 
-## Overview
+## Gambaran Umum
 
-The WhatsApp Multi-Device API allows developers to manage multiple WhatsApp devices and send messages programmatically. This API is designed to be easy to use and integrate into your applications.
+API Multi-Perangkat WhatsApp memungkinkan pengembang untuk mengelola beberapa perangkat WhatsApp dan mengirim pesan secara terprogram. API ini dirancang agar mudah digunakan dan diintegrasikan ke dalam aplikasi Anda.
 
-## Getting Help
+## Mendapatkan Bantuan
 
-If you encounter any issues or have questions, please refer to the [installation guide](getting-started/installation.md) or the [quick start guide](getting-started/quickstart.md) for assistance. For further inquiries, you can reach out to the support team.
+Jika Anda mengalami masalah atau memiliki pertanyaan, silakan merujuk ke [panduan instalasi](getting-started/installation.md) atau [panduan memulai cepat](getting-started/quickstart.md) untuk mendapatkan bantuan. Untuk pertanyaan lebih lanjut, Anda dapat menghubungi tim dukungan.
 
-Happy coding!
+Selamat membuat kode!

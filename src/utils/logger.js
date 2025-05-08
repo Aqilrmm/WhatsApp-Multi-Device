@@ -1,6 +1,7 @@
 // src/utils/logger.js
 const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
 const config = require('../../config');
 
 // Create logs directory if it doesn't exist
