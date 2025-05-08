@@ -1,0 +1,45 @@
+<!-- public/qr-scanner.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp QR Scanner</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>WhatsApp Multi-Device Manager</h1>
+      <h2>QR Scanner</h2>
+      <div class="device-info">
+        <p>Device ID: <span id="device-id">Loading...</span></p>
+        <p>Status: <span id="status">Initializing...</span></p>
+      </div>
+    </div>
+    
+    <div class="qr-container">
+      <div id="loading">Generating QR code...</div>
+      <div id="qr-code" class="hidden"></div>
+      <div id="connected-info" class="hidden">
+        <h3>Connected!</h3>
+        <p>WhatsApp number: <span id="whatsapp-number"></span></p>
+        <p>Name: <span id="whatsapp-name"></span></p>
+      </div>
+    </div>
+    
+    <div class="instructions">
+      <h3>Instructions</h3>
+      <ol>
+        <li>Open WhatsApp on your phone</li>
+        <li>Tap Menu or Settings and select WhatsApp Web</li>
+        <li>Point your phone to this screen to capture the QR code</li>
+      </ol>
+      <p class="note">Note: This will link your WhatsApp account to this application</p>
+    </div>
+  </div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/qr-scanner.js"></script>
+</body>
+</html>

@@ -1,0 +1,923 @@
+// File structure:
+/*
+|- package.json
+|- index.js
+|- config.js
+|- src/
+  |- models/
+    |- Client.js
+    |- Device.js
+  |- controllers/
+    |- deviceController.js
+    |- messageController.js
+  |- routes/
+    |- deviceRoutes.js
+    |- messageRoutes.js
+  |- services/
+    |- clientService.js
+    |- qrService.js
+  |- middleware/
+    |- logger.js
+  |- utils/
+    |- logger.js
+|- public/
+  |- qr-scanner.html
+  |- js/
+    |- qr-scanner.js
+  |- css/
+    |- style.css
+*/
+
+// package.json
+{
+  "name": "whatsapp-multi-device-manager",
+  "version": "1.0.0",
+  "description": "WhatsApp Multi-Device Manager using whatsapp-web.js",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "qrcode": "^1.5.3",
+    "socket.io": "^4.7.2",
+    "uuid": "^9.0.1",
+    "whatsapp-web.js": "1.27.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+
+// config.js
+module.exports = {
+  port: process.env.PORT || 3000,
+  logLevel: process.env.LOG_LEVEL || 'info',
+  dataDir: './data',
+  qrTimeout: 60000, // 1 minute
+  sessionTimeout: 30 * 60000, // 30 minutes
+};
+
+// index.js
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const config = require('./config');
+const logger = require('./src/utils/logger');
+const deviceRoutes = require('./src/routes/deviceRoutes');
+const messageRoutes = require('./src/routes/messageRoutes');
+const { initializeQrService } = require('./src/services/qrService');
+
+// Create data directory if it doesn't exist
+if (!fs.existsSync(config.dataDir)) {
+  fs.mkdirSync(config.dataDir, { recursive: true });
+  logger.info(`Created data directory: ${config.dataDir}`);
+}
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+// Initialize QR service with socket.io
+initializeQrService(io);
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.url}`);
+  next();
+});
+
+// Routes
+app.use('/api/devices', deviceRoutes);
+app.use('/api/messages', messageRoutes);
+
+// QR Scanner route
+app.get('/qr-scanner/:deviceId', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'qr-scanner.html'));
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  logger.error(`Error: ${err.message}`);
+  res.status(500).json({ error: err.message });
+});
+
+// Start the server
+server.listen(config.port, () => {
+  logger.info(`Server is running on port ${config.port}`);
+});
+
+// src/models/Client.js
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const path = require('path');
+const fs = require('fs');
+const config = require('../../config');
+const logger = require('../utils/logger');
+
+class WhatsAppClient {
+  constructor(deviceId, sessionDir) {
+    this.deviceId = deviceId;
+    this.sessionDir = sessionDir;
+    this.client = null;
+    this.qr = null;
+    this.info = null;
+    this.status = 'initializing';
+    this.lastActive = Date.now();
+    this.messageHandlers = [];
+  }
+
+  initialize() {
+    // Create session directory if it doesn't exist
+    if (!fs.existsSync(this.sessionDir)) {
+      fs.mkdirSync(this.sessionDir, { recursive: true });
+    }
+
+    // Initialize WhatsApp client
+    this.client = new Client({
+      authStrategy: new LocalAuth({
+        clientId: this.deviceId,
+        dataPath: this.sessionDir
+      }),
+      puppeteer: {
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      }
+    });
+
+    // Set up event handlers
+    this.client.on('qr', (qr) => {
+      this.qr = qr;
+      this.status = 'qr_ready';
+      logger.info(`QR code generated for device: ${this.deviceId}`);
+      this.lastActive = Date.now();
+    });
+
+    this.client.on('ready', async () => {
+      this.status = 'connected';
+      this.qr = null;
+      this.lastActive = Date.now();
+      
+      try {
+        this.info = {
+          number: (await this.client.getWid()).user,
+          pushname: await this.client.getInfo(),
+          status: await this.client.getStatus(),
+          profilePictureUrl: await this.client.getProfilePicUrl(await this.client.getWid()._serialized) || null
+        };
+        
+        logger.info(`Device ${this.deviceId} is ready. WhatsApp number: ${this.info.number}`);
+      } catch (error) {
+        logger.error(`Failed to get client info for ${this.deviceId}: ${error.message}`);
+        this.info = { number: 'unknown', pushname: 'unknown' };
+      }
+    });
+
+    this.client.on('authenticated', () => {
+      this.status = 'authenticated';
+      this.qr = null;
+      this.lastActive = Date.now();
+      logger.info(`Device ${this.deviceId} authenticated`);
+    });
+
+    this.client.on('auth_failure', (msg) => {
+      this.status = 'auth_failure';
+      logger.error(`Authentication failure for device ${this.deviceId}: ${msg}`);
+    });
+
+    this.client.on('disconnected', (reason) => {
+      this.status = 'disconnected';
+      logger.info(`Device ${this.deviceId} disconnected: ${reason}`);
+    });
+
+    this.client.on('message', (message) => {
+      this.lastActive = Date.now();
+      logger.info(`New message received on device ${this.deviceId} from ${message.from}`);
+      
+      // Notify all registered message handlers
+      this.messageHandlers.forEach(handler => {
+        try {
+          handler(message, this.deviceId);
+        } catch (error) {
+          logger.error(`Error in message handler for device ${this.deviceId}: ${error.message}`);
+        }
+      });
+    });
+
+    // Initialize the client
+    this.client.initialize()
+      .catch(error => {
+        this.status = 'error';
+        logger.error(`Failed to initialize client for device ${this.deviceId}: ${error.message}`);
+      });
+
+    return this;
+  }
+
+  async getDeviceInfo() {
+    return {
+      deviceId: this.deviceId,
+      status: this.status,
+      info: this.info,
+      lastActive: this.lastActive
+    };
+  }
+
+  async sendMessage(to, message) {
+    if (this.status !== 'connected') {
+      throw new Error(`Device ${this.deviceId} is not connected`);
+    }
+
+    try {
+      const result = await this.client.sendMessage(to, message);
+      logger.info(`Message sent from device ${this.deviceId} to ${to}`);
+      return result;
+    } catch (error) {
+      logger.error(`Failed to send message from device ${this.deviceId} to ${to}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  registerMessageHandler(handler) {
+    if (typeof handler === 'function') {
+      this.messageHandlers.push(handler);
+    }
+  }
+
+  async disconnect() {
+    try {
+      if (this.client) {
+        await this.client.destroy();
+        this.status = 'disconnected';
+        logger.info(`Device ${this.deviceId} disconnected`);
+      }
+    } catch (error) {
+      logger.error(`Error disconnecting device ${this.deviceId}: ${error.message}`);
+    }
+  }
+}
+
+module.exports = WhatsAppClient;
+
+// src/models/Device.js
+const path = require('path');
+const config = require('../../config');
+const WhatsAppClient = require('./Client');
+
+class DeviceManager {
+  constructor() {
+    this.devices = new Map();
+    this.globalMessageHandler = null;
+  }
+
+  getDevice(deviceId) {
+    return this.devices.get(deviceId);
+  }
+
+  getAllDevices() {
+    const deviceList = [];
+    this.devices.forEach((device, deviceId) => {
+      deviceList.push({
+        deviceId,
+        status: device.status,
+        info: device.info,
+        lastActive: device.lastActive
+      });
+    });
+    return deviceList;
+  }
+
+  hasDevice(deviceId) {
+    return this.devices.has(deviceId);
+  }
+
+  createDevice(deviceId) {
+    if (this.devices.has(deviceId)) {
+      throw new Error(`Device with ID ${deviceId} already exists`);
+    }
+
+    const sessionDir = path.join(config.dataDir, 'sessions', deviceId);
+    const client = new WhatsAppClient(deviceId, sessionDir);
+    
+    // Register global message handler if exists
+    if (this.globalMessageHandler) {
+      client.registerMessageHandler(this.globalMessageHandler);
+    }
+    
+    const initializedClient = client.initialize();
+    this.devices.set(deviceId, initializedClient);
+    
+    return initializedClient;
+  }
+
+  async removeDevice(deviceId) {
+    const device = this.devices.get(deviceId);
+    if (!device) {
+      throw new Error(`Device with ID ${deviceId} not found`);
+    }
+
+    await device.disconnect();
+    this.devices.delete(deviceId);
+    return { success: true, message: `Device ${deviceId} removed` };
+  }
+
+  setGlobalMessageHandler(handler) {
+    this.globalMessageHandler = handler;
+    
+    // Register handler with all existing devices
+    this.devices.forEach(device => {
+      device.registerMessageHandler(handler);
+    });
+  }
+}
+
+// Singleton instance
+const deviceManager = new DeviceManager();
+module.exports = deviceManager;
+
+// src/controllers/deviceController.js
+const { v4: uuidv4 } = require('uuid');
+const deviceManager = require('../models/Device');
+const qrService = require('../services/qrService');
+const logger = require('../utils/logger');
+
+exports.getAllDevices = async (req, res) => {
+  try {
+    const devices = deviceManager.getAllDevices();
+    res.json({ devices });
+  } catch (error) {
+    logger.error(`Error getting all devices: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getDevice = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const device = deviceManager.getDevice(deviceId);
+    
+    if (!device) {
+      return res.status(404).json({ error: `Device ${deviceId} not found` });
+    }
+    
+    const deviceInfo = await device.getDeviceInfo();
+    res.json({ device: deviceInfo });
+  } catch (error) {
+    logger.error(`Error getting device ${req.params.deviceId}: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.createDevice = async (req, res) => {
+  try {
+    let { deviceId } = req.body;
+    
+    // Generate deviceId if not provided
+    if (!deviceId) {
+      deviceId = uuidv4();
+    }
+    
+    // Check if device exists
+    if (deviceManager.hasDevice(deviceId)) {
+      return res.status(409).json({ 
+        error: `Device ${deviceId} already exists`,
+        message: 'A device with this ID already exists. Please delete it first or use a different ID.'
+      });
+    }
+    
+    // Create device
+    const device = deviceManager.createDevice(deviceId);
+    
+    // Register for QR updates
+    qrService.registerDevice(deviceId, device);
+    
+    res.status(201).json({ 
+      deviceId,
+      status: device.status,
+      message: 'Device created. Scan the QR code to connect.',
+      qrScanUrl: `/qr-scanner/${deviceId}`
+    });
+  } catch (error) {
+    logger.error(`Error creating device: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.removeDevice = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    
+    // Check if device exists
+    if (!deviceManager.hasDevice(deviceId)) {
+      return res.status(404).json({ error: `Device ${deviceId} not found` });
+    }
+    
+    // Remove device
+    await deviceManager.removeDevice(deviceId);
+    
+    // Unregister from QR service
+    qrService.unregisterDevice(deviceId);
+    
+    res.json({ success: true, message: `Device ${deviceId} removed` });
+  } catch (error) {
+    logger.error(`Error removing device ${req.params.deviceId}: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getDeviceQR = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const device = deviceManager.getDevice(deviceId);
+    
+    if (!device) {
+      return res.status(404).json({ error: `Device ${deviceId} not found` });
+    }
+    
+    if (device.status === 'connected') {
+      return res.status(400).json({ 
+        error: 'Device already connected',
+        status: device.status,
+        info: device.info
+      });
+    }
+    
+    if (!device.qr) {
+      return res.status(202).json({ 
+        message: 'QR code not generated yet',
+        status: device.status
+      });
+    }
+    
+    res.json({ 
+      deviceId,
+      qrCode: device.qr,
+      status: device.status
+    });
+  } catch (error) {
+    logger.error(`Error getting QR for device ${req.params.deviceId}: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// src/controllers/messageController.js
+const deviceManager = require('../models/Device');
+const logger = require('../utils/logger');
+
+exports.sendMessage = async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const { to, message } = req.body;
+    
+    if (!to || !message) {
+      return res.status(400).json({ error: 'To and message fields are required' });
+    }
+    
+    const device = deviceManager.getDevice(deviceId);
+    
+    if (!device) {
+      return res.status(404).json({ error: `Device ${deviceId} not found` });
+    }
+    
+    if (device.status !== 'connected') {
+      return res.status(400).json({ 
+        error: `Device ${deviceId} is not connected`,
+        status: device.status
+      });
+    }
+    
+    const result = await device.sendMessage(to, message);
+    
+    res.json({ 
+      success: true, 
+      messageId: result.id._serialized,
+      from: deviceId,
+      to,
+      timestamp: result.timestamp
+    });
+  } catch (error) {
+    logger.error(`Error sending message from device ${req.params.deviceId}: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getMessages = async (req, res) => {
+  // This would require storing messages in a database
+  // For simplicity, we'll return an empty array or implement a webhook system
+  res.json({ 
+    message: 'To get messages, please implement a webhook endpoint and register it using the /api/messages/webhook endpoint',
+    messages: []
+  });
+};
+
+exports.registerWebhook = async (req, res) => {
+  try {
+    const { url, events } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'Webhook URL is required' });
+    }
+    
+    // In a real implementation, store the webhook URL and events in a database
+    // For now, we'll just log it
+    logger.info(`Webhook registered: ${url}, events: ${events || 'all'}`);
+    
+    // Here you would implement logic to send messages to this webhook
+    
+    res.json({ 
+      success: true, 
+      message: 'Webhook registered',
+      url,
+      events: events || 'all'
+    });
+  } catch (error) {
+    logger.error(`Error registering webhook: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// src/routes/deviceRoutes.js
+const express = require('express');
+const router = express.Router();
+const deviceController = require('../controllers/deviceController');
+
+// Get all devices
+router.get('/', deviceController.getAllDevices);
+
+// Get specific device
+router.get('/:deviceId', deviceController.getDevice);
+
+// Create new device
+router.post('/', deviceController.createDevice);
+
+// Remove device
+router.delete('/:deviceId', deviceController.removeDevice);
+
+// Get device QR code
+router.get('/:deviceId/qr', deviceController.getDeviceQR);
+
+module.exports = router;
+
+// src/routes/messageRoutes.js
+const express = require('express');
+const router = express.Router();
+const messageController = require('../controllers/messageController');
+
+// Send message from specific device
+router.post('/:deviceId/send', messageController.sendMessage);
+
+// Get messages for specific device (implementation would depend on your storage method)
+router.get('/:deviceId', messageController.getMessages);
+
+// Register webhook for message events
+router.post('/webhook', messageController.registerWebhook);
+
+module.exports = router;
+
+// src/services/clientService.js
+const deviceManager = require('../models/Device');
+const logger = require('../utils/logger');
+
+exports.setupMessageHandlers = () => {
+  // Set up global message handler
+  deviceManager.setGlobalMessageHandler((message, deviceId) => {
+    logger.info(`Message from ${message.from} to device ${deviceId}: ${message.body.substring(0, 50)}${message.body.length > 50 ? '...' : ''}`);
+    
+    // Here you would implement webhook notifications
+    // For now, we'll just log the message
+  });
+};
+
+// src/services/qrService.js
+const qrcode = require('qrcode');
+const logger = require('../utils/logger');
+
+let io;
+const deviceQrMap = new Map();
+
+exports.initializeQrService = (socketIo) => {
+  io = socketIo;
+  
+  io.on('connection', (socket) => {
+    logger.info(`Socket connected: ${socket.id}`);
+    
+    socket.on('join-device', (deviceId) => {
+      socket.join(deviceId);
+      logger.info(`Socket ${socket.id} joined room for device ${deviceId}`);
+      
+      // If we already have a QR for this device, send it immediately
+      const device = deviceQrMap.get(deviceId);
+      if (device && device.qr) {
+        qrcode.toDataURL(device.qr, (err, url) => {
+          if (!err) {
+            socket.emit('qr-code', { deviceId, qrDataUrl: url, status: device.status });
+          }
+        });
+      }
+    });
+    
+    socket.on('disconnect', () => {
+      logger.info(`Socket disconnected: ${socket.id}`);
+    });
+  });
+};
+
+exports.registerDevice = (deviceId, device) => {
+  deviceQrMap.set(deviceId, device);
+  
+  // Watch for QR code updates
+  const qrInterval = setInterval(() => {
+    if (device.qr && device.status === 'qr_ready') {
+      qrcode.toDataURL(device.qr, (err, url) => {
+        if (!err) {
+          io.to(deviceId).emit('qr-code', { deviceId, qrDataUrl: url, status: device.status });
+        }
+      });
+    } else if (device.status === 'connected' || device.status === 'authenticated') {
+      io.to(deviceId).emit('device-connected', { 
+        deviceId, 
+        status: device.status,
+        info: device.info
+      });
+      
+      // Device connected, no need to keep checking for QR
+      clearInterval(qrInterval);
+    }
+  }, 1000);
+};
+
+exports.unregisterDevice = (deviceId) => {
+  deviceQrMap.delete(deviceId);
+  io.to(deviceId).emit('device-removed', { deviceId });
+};
+
+// src/middleware/logger.js
+const logger = require('../utils/logger');
+
+exports.requestLogger = (req, res, next) => {
+  logger.info(`${req.method} ${req.url}`);
+  next();
+};
+
+// src/utils/logger.js
+const winston = require('winston');
+const path = require('path');
+const config = require('../../config');
+
+// Create logs directory if it doesn't exist
+const logDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
+
+const logger = winston.createLogger({
+  level: config.logLevel,
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'whatsapp-multi-device-manager' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    }),
+    new winston.transports.File({ 
+      filename: path.join(logDir, 'error.log'), 
+      level: 'error' 
+    }),
+    new winston.transports.File({ 
+      filename: path.join(logDir, 'combined.log') 
+    })
+  ]
+});
+
+module.exports = logger;
+
+// public/qr-scanner.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp QR Scanner</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>WhatsApp Multi-Device Manager</h1>
+      <h2>QR Scanner</h2>
+      <div class="device-info">
+        <p>Device ID: <span id="device-id">Loading...</span></p>
+        <p>Status: <span id="status">Initializing...</span></p>
+      </div>
+    </div>
+    
+    <div class="qr-container">
+      <div id="loading">Generating QR code...</div>
+      <div id="qr-code" class="hidden"></div>
+      <div id="connected-info" class="hidden">
+        <h3>Connected!</h3>
+        <p>WhatsApp number: <span id="whatsapp-number"></span></p>
+        <p>Name: <span id="whatsapp-name"></span></p>
+      </div>
+    </div>
+    
+    <div class="instructions">
+      <h3>Instructions</h3>
+      <ol>
+        <li>Open WhatsApp on your phone</li>
+        <li>Tap Menu or Settings and select WhatsApp Web</li>
+        <li>Point your phone to this screen to capture the QR code</li>
+      </ol>
+      <p class="note">Note: This will link your WhatsApp account to this application</p>
+    </div>
+  </div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/qr-scanner.js"></script>
+</body>
+</html>
+
+// public/js/qr-scanner.js
+document.addEventListener('DOMContentLoaded', function() {
+  // Get device ID from URL
+  const pathParts = window.location.pathname.split('/');
+  const deviceId = pathParts[pathParts.length - 1];
+  
+  // Update device ID on page
+  document.getElementById('device-id').textContent = deviceId;
+  
+  // Connect to Socket.IO
+  const socket = io();
+  
+  // Join device room
+  socket.emit('join-device', deviceId);
+  
+  // Handle QR code updates
+  socket.on('qr-code', function(data) {
+    if (data.deviceId !== deviceId) return;
+    
+    document.getElementById('status').textContent = data.status;
+    document.getElementById('loading').classList.add('hidden');
+    
+    const qrElement = document.getElementById('qr-code');
+    qrElement.innerHTML = `<img src="${data.qrDataUrl}" alt="QR Code">`;
+    qrElement.classList.remove('hidden');
+    
+    document.getElementById('connected-info').classList.add('hidden');
+  });
+  
+  // Handle device connected
+  socket.on('device-connected', function(data) {
+    if (data.deviceId !== deviceId) return;
+    
+    document.getElementById('status').textContent = data.status;
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('qr-code').classList.add('hidden');
+    
+    const connectedInfo = document.getElementById('connected-info');
+    connectedInfo.classList.remove('hidden');
+    
+    document.getElementById('whatsapp-number').textContent = data.info?.number || 'Unknown';
+    document.getElementById('whatsapp-name').textContent = data.info?.pushname || 'Unknown';
+  });
+  
+  // Handle device removed
+  socket.on('device-removed', function(data) {
+    if (data.deviceId !== deviceId) return;
+    
+    document.getElementById('status').textContent = 'Device removed';
+    document.getElementById('loading').textContent = 'This device has been removed';
+    document.getElementById('loading').classList.remove('hidden');
+    document.getElementById('qr-code').classList.add('hidden');
+    document.getElementById('connected-info').classList.add('hidden');
+  });
+  
+  // Try to get initial device status
+  fetch(`/api/devices/${deviceId}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.device) {
+        document.getElementById('status').textContent = data.device.status;
+        
+        if (data.device.status === 'connected') {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('qr-code').classList.add('hidden');
+          
+          const connectedInfo = document.getElementById('connected-info');
+          connectedInfo.classList.remove('hidden');
+          
+          document.getElementById('whatsapp-number').textContent = data.device.info?.number || 'Unknown';
+          document.getElementById('whatsapp-name').textContent = data.device.info?.pushname || 'Unknown';
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching device info:', error);
+    });
+});
+
+// public/css/style.css
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f5f5f5;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+h1 {
+  color: #128C7E;
+  margin-bottom: 5px;
+}
+
+h2 {
+  color: #075E54;
+  margin-top: 0;
+}
+
+.device-info {
+  background-color: #DCF8C6;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.qr-container {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  margin-bottom: 20px;
+}
+
+#qr-code img {
+  max-width: 100%;
+  height: auto;
+}
+
+.instructions {
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.instructions h3 {
+  margin-top: 0;
+  color: #075E54;
+}
+
+.instructions ol {
+  padding-left: 20px;
+}
+
+.instructions li {
+  margin-bottom: 10px;
+}
+
+.note {
+  font-style: italic;
+  color: #666;
+}
+
+.hidden {
+  display: none;
+}
+
+#connected-info {
+  text-align: center;
+}
+
+#connected-info h3 {
+  color: #25D366;
+}
